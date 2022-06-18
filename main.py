@@ -55,5 +55,5 @@ df = pd.DataFrame(
 
 df.to_csv("Essays.csv", index=False)
 
-# TODO: 1) Remove \ufeff at the beginning of each text (it's a space?)
+# TODO: 1) Remove \ufeff at the beginning of each text (looks like it's a " )
 
