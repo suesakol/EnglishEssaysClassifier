@@ -1,15 +1,20 @@
 import os
 import re
 import pandas as pd
+import spacy
 
+
+# After importing spacy, create an instance of Language class, named "nlp" by convention
+
+nlp = spacy.load("en_core_web_md")
 
 # Create a regex pattern to extract info from file names
 # ?P<...> create named groups for help with retrieval
 
 file_pattern = re.compile(r"^(.*?)_(?P<L1>.*?)_(?P<Topic>.*?)_(?P<ID>.*?)_(?P<Level>.*?).txt$")
 
-
 file_paths = []
+file_names = []
 first_lang = []
 topic = []
 subj_id = []
@@ -19,12 +24,13 @@ essays = []
 
 
 # The first file in ./Data is empty thus skipped
-# Here, os.walk() method generates the file names (as strings) in the file index tree
+# Here, os.walk() method generates file names (as strings) in the file index tree
 # The method outputs a three-item tuple (root info, directories, and all files); hence, root, dirs, files
 
 for root, dirs, files in os.walk("./Data/"):
     for name in files[1:]:
         fpath = os.path.join(root, name)
+        file_names.append(name)
         file_paths.append(fpath)
 
         pattern = re.match(file_pattern, name)
@@ -36,24 +42,58 @@ for root, dirs, files in os.walk("./Data/"):
 
 
 # Read content of each file and append it to a list
+# Each text begins with "\ufeff" which is an encoding format
+# Provide Python with the right encoding to remove it
 
 for file in file_paths:
-    with open(file=f"{file}", encoding="utf8") as text:
-        raw_txt = text.read()
+    with open(file=f"{file}", encoding="utf-8-sig") as text:
+        txt = text.read()
+        raw_txt = txt.strip()
         essays.append(raw_txt)
 
 
+# Create a data frame
+
 df = pd.DataFrame(
     {
-    'Subject_id': subj_id,
-    'Topics': topic,
-    'Levels_key': level,
-    'L1s': first_lang,
-    'Essays': essays,
+        'file_name': file_names,
+        'subject_id': subj_id,
+        'topic': topic,
+        'levels_key': level,
+        'first_lang': first_lang,
+        'essay': essays,
     }
 )
 
+
+# NLP pipeline: tokenization, pos-tagging, syntactic analysis
+
+docs = list(nlp.pipe(df.essay))
+
+
+# Append to the data frame
+
+df = pd.concat([
+    df,
+    pd.DataFrame(
+        {
+            'text_length': [len([token.is_alpha for token in doc if token.is_alpha]) for doc in docs],
+            'token': [[token.text for token in doc] for doc in docs],
+            'pos': [[token.pos_ for token in doc] for doc in docs],
+            'token_pos': [[(token.text, token.pos_) for token in doc] for doc in docs],
+            'dep': [[token.dep_ for token in doc] for doc in docs],
+            'token_dep': [[(token.text, token.dep_) for token in doc] for doc in docs],
+            'sentence': [[s.text for s in doc.sents] for doc in docs],
+            'sentence_length': [len([s.text for s in doc.sents]) for doc in docs],
+        }
+    )], axis=1
+)
+
+
+# Save the data frame to a csv file
+
 df.to_csv("Essays.csv", index=False)
 
-# TODO: 1) Remove \ufeff at the beginning of each text (looks like it's a " )
 
+# Iterate through a data frame and select columns into a dict
+# nato_dict = {row.letter: row.code for (index, row) in df.iterrows()}
