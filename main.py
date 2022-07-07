@@ -28,28 +28,35 @@ essays = []
 # The method outputs a three-item tuple (root info, directories, and all files); hence, root, dirs, files
 
 for root, dirs, files in os.walk("./Data/"):
-    for name in files[1:]:
-        fpath = os.path.join(root, name)
-        file_names.append(name)
-        file_paths.append(fpath)
+    for name in files:
+        if name == ".DS_Store":
+            pass
+        else:
+            fpath = os.path.join(root, name)
+            file_names.append(name)
+            file_paths.append(fpath)
 
-        pattern = re.match(file_pattern, name)
+            pattern = re.match(file_pattern, name)
 
-        first_lang.append(pattern.group("L1"))
-        topic.append(pattern.group("Topic"))
-        subj_id.append(pattern.group("ID"))
-        level.append(pattern.group("Level"))
+            first_lang.append(pattern.group("L1"))
+            topic.append(pattern.group("Topic"))
+            subj_id.append(pattern.group("ID"))
+            level.append(pattern.group("Level"))
 
 
 # Read content of each file and append it to a list
 # Each text begins with "\ufeff" which is an encoding format
 # Provide Python with the right encoding to remove it
 
+file_num = 0
+
 for file in file_paths:
     with open(file=f"{file}", encoding="utf-8-sig") as text:
         txt = text.read()
         raw_txt = txt.strip()
         essays.append(raw_txt)
+        file_num += 1
+print(f"Total files read: {file_num}")
 
 
 # Create a data frame
@@ -77,13 +84,13 @@ df = pd.concat([
     df,
     pd.DataFrame(
         {
-            'text_length': [len([token.is_alpha for token in doc if token.is_alpha]) for doc in docs],
             'token': [[token.text for token in doc] for doc in docs],
             'pos': [[token.pos_ for token in doc] for doc in docs],
             'token_pos': [[(token.text, token.pos_) for token in doc] for doc in docs],
             'dep': [[token.dep_ for token in doc] for doc in docs],
             'token_dep': [[(token.text, token.dep_) for token in doc] for doc in docs],
             'sentence': [[s.text for s in doc.sents] for doc in docs],
+            'word_length': [len([token.is_alpha for token in doc if token.is_alpha]) for doc in docs],
             'sentence_length': [len([s.text for s in doc.sents]) for doc in docs],
         }
     )], axis=1
